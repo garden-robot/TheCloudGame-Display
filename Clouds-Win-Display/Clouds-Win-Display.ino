@@ -17,7 +17,7 @@ byte cloud_hue = 0 ;
 #define SPARKLE_DURATION        800
 #define SPARKLE_CYCLE_DURATION  1600
 
-
+bool win = false;
 //sun spot fade
 #define SETUP_FADE_UP_INTERVAL 1000
 #define SETUP_RED_INTERVAL 500
@@ -26,18 +26,51 @@ byte setupFadeFace;
 Timer setupFadeTimer;
 word backgroundTime;
 
-void setup() {
 
+#define FADE_TO_WIN 500
+
+Timer fadeToWin;
+#define FADE_TO_WIN_DELAY 4000
+
+enum modeStates {LOSE, WIN};
+byte currentMode;
+bool winStates[6] = {false, false, false, false, false, false};
+void setup() {
   // put your setup code here, to run once:
   randomize();
+  fadeToWin.set(FADE_TO_WIN_DELAY);
 
 }
 
 void loop() {
-  silverLiningDisplay();
+  fadeToDark();
+  if (fadeToWin.isExpired()) {
+
+    silverLiningDisplay();
+  }
 
 }
 
+
+
+void fadeToDark() {
+  setColor(WHITE);
+
+  uint32_t delta = millis() - timeOfSend;
+
+
+  FOREACH_FACE(f) {
+    // minimum of 125, maximum of 255
+    byte phaseShift = 60 * f;
+    byte amplitude = 55;
+    byte midline = 185;
+    byte rate = 6;
+    byte brightness = midline + (amplitude * sin8_C ( (phaseShift + millis() / rate) % 255)) / 255;
+    byte saturation = map(delta, 0, FADE_TO_WIN_DELAY, 0, 255);
+    Color faceColor = makeColorHSB(0, 0, saturation);
+    setColorOnFace(faceColor, f);
+  }
+}
 
 
 void silverLiningDisplay() {
@@ -62,6 +95,7 @@ void silverLiningDisplay() {
     silverLining(faceColor_cloud, faceColor_lining);
   }
 }
+
 
 
 
@@ -114,4 +148,7 @@ void silverLining(Color faceColor_Cloud, Color faceColor_Lining) {
     }
 
   }
+}
+byte getMode(byte data) {
+  return (data >> 5);               //the value in the first bit
 }
