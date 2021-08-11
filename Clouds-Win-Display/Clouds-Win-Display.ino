@@ -13,47 +13,36 @@ byte gameMode = MODE1;//the default mode when the game begins
 
 //time values for delta
 uint32_t timeOfSend = 0;
-uint32_t timeOfPress = 0; // use this to show the button was pressed in connect mode
-
-//Colors
-Color SILVER_ORANGE = makeColorHSB(30, 255, 255); //sun ppot
-Color SILVER_CYAN = makeColorHSB(120, 255, 0);  //lining
-
-//hues
-byte sunSpot_hue = 30;
-byte lining_hue = 120;
-byte cloud_hue = 0 ;
 
 
-//lining Fade
-#define SPARKLE_OFFSET          80
+//Silver Lining Constants for delta
 #define SPARKLE_DURATION        800
 #define SPARKLE_CYCLE_DURATION  1600
 
-bool win = false;
-//sun spot fade
-#define SETUP_FADE_UP_INTERVAL 1000
-#define SETUP_RED_INTERVAL 500
-#define SETUP_FADE_DELAY 4000
+
+//Sun Spot Values
+byte sunSpot_hue = 30;
 byte setupFadeFace;
 Timer setupFadeTimer;
 word backgroundTime;
+#define SETUP_FADE_UP_INTERVAL 1000
+#define SETUP_RED_INTERVAL 500
+#define SETUP_FADE_DELAY 4000
 
 
-#define FADE_TO_WIN 500
+//Timers
 
 Timer fadeToBright;
-#define FADE_TO_BRIGHT_DELAY 2000
-
-Timer fadeToCloud;
-#define FADE_TO_CLOUD_DELAY 3000
-
 Timer sunSpotFade;
-#define SUN_SPOT_FADE 1000
-
+Timer fadeToCloud;
 Timer fadeToDark;
+
+#define FADE_TO_BRIGHT_DELAY 2000
+#define SUN_SPOT_FADE 1000
+#define FADE_TO_CLOUD_DELAY 3000
 #define FADE_TO_DARK_DELAY 1000
 
+//Shared states
 enum modeStates {LOSE, WIN};
 byte currentMode;
 
@@ -142,6 +131,7 @@ void mode3Loop() {
 */
 void changeMode( byte mode ) {
   if (mode == MODE2) {
+    //Set Timers
     setupFadeTimer.set(backgroundTime + SETUP_FADE_UP_INTERVAL + random(SETUP_FADE_DELAY));
     fadeToBright.set(FADE_TO_BRIGHT_DELAY);
     fadeToDark.set(FADE_TO_DARK_DELAY);
@@ -203,38 +193,19 @@ void resolveLoop() {
 }
 
 void fadeToLight() {
-
-  uint32_t delta = millis() - timeOfSend;
-
-
   FOREACH_FACE(f) {
     // minimum of 125, maximum of 255
-    byte phaseShift = 60 * f;
-    byte amplitude = 55;
-    byte midline = 185;
-    byte rate = 6;
-    byte brightness = midline + (amplitude * sin8_C ( (phaseShift + millis() / rate) % 255)) / 255;
-    byte saturation = 255 -  map(fadeToBright.getRemaining(), 0, FADE_TO_BRIGHT_DELAY, 0, 255);
-    Color faceColor = makeColorHSB(0, 0, saturation);
+    byte brightness = 255 -  map(fadeToBright.getRemaining(), 0, FADE_TO_BRIGHT_DELAY, 0, 255);
+    Color faceColor = makeColorHSB(0, 0, brightness);
     setColorOnFace(faceColor, f);
   }
 }
 
 
 void fadeToNoLight() {
-
-  uint32_t delta = millis() - timeOfSend;
-
-
   FOREACH_FACE(f) {
-    // minimum of 125, maximum of 255
-    byte phaseShift = 60 * f;
-    byte amplitude = 55;
-    byte midline = 185;
-    byte rate = 6;
-    byte brightness = midline + (amplitude * sin8_C ( (phaseShift + millis() / rate) % 255)) / 255;
-    byte saturation = map(fadeToDark.getRemaining(), 0, FADE_TO_DARK_DELAY, 0, 255);
-    Color faceColor = makeColorHSB(0, 0, saturation);
+    byte brightness = map(fadeToDark.getRemaining(), 0, FADE_TO_DARK_DELAY, 0, 255);
+    Color faceColor = makeColorHSB(0, 0, brightness);
     setColorOnFace(faceColor, f);
   }
 }
@@ -242,6 +213,7 @@ void fadeToNoLight() {
 void silverLiningDisplay() {
   Color faceColor_lining;
   Color faceColor_cloud;
+  
   uint32_t delta = millis() - timeOfSend;
 
 
@@ -255,13 +227,12 @@ void silverLiningDisplay() {
     byte amplitude = 55;
     byte midline = 185;
     byte rate = 10;
-    byte brightness = midline + (amplitude * sin8_C ( (phaseShift + millis() / rate) % 255)) / 255;
-    byte saturation = 255 -  map(fadeToBright.getRemaining(), 0, FADE_TO_BRIGHT_DELAY, 0, 255);
-     byte cloudSaturation = 255 -  map(fadeToCloud.getRemaining(), 0, FADE_TO_CLOUD_DELAY, 0, 255);
+    byte brightness = 255 -  map(fadeToBright.getRemaining(), 0, FADE_TO_BRIGHT_DELAY, 0, 255);
+    byte cloudBrightness = 255 -  map(fadeToCloud.getRemaining(), 0, FADE_TO_CLOUD_DELAY, 0, 255);
     if (!fadeToCloud.isExpired()) {
 
-       faceColor_lining = makeColorHSB(0, 0, saturation);
-      faceColor_cloud = makeColorHSB(160, saturation, cloudSaturation);
+       faceColor_lining = makeColorHSB(0, 0, brightness);
+      faceColor_cloud = makeColorHSB(160, brightness, cloudBrightness);
 
     }
 
@@ -279,15 +250,14 @@ void silverLiningDisplay() {
 
 void silverLining(Color faceColor_Cloud, Color faceColor_Lining) {
 
-
-  //setColor(faceColor_Cloud);
   FOREACH_FACE(f) {
     if (!isValueReceivedOnFaceExpired(f)) { //if something there aka if within the cloud
-
-
+            
+      Color fadeColor;
+      byte saturation;
+      byte hue;
       // have the color on the Blink raise and lower to feel more alive
       byte bri = 185 + sin8_C( (millis() / 14) % 255) * 70 / 255; // oscillate between values 185and 255
-
 
       // lets do a celebration on each face in an order
       word delta = millis() % SPARKLE_CYCLE_DURATION; // 2 second cycle
@@ -297,39 +267,36 @@ void silverLining(Color faceColor_Cloud, Color faceColor_Lining) {
       }
 
 
-      if (setupFadeTimer.isExpired()) {
-        setupFadeFace = f;
-        backgroundTime = SETUP_RED_INTERVAL + random(SETUP_RED_INTERVAL / 2);
+      if (setupFadeTimer.isExpired()) { //fade timer for sun spots
+        setupFadeFace = f; //assign face
+        backgroundTime = SETUP_RED_INTERVAL + random(SETUP_RED_INTERVAL / 2); //bit of randomness
         setupFadeTimer.set(backgroundTime + SETUP_FADE_UP_INTERVAL + random(SETUP_FADE_DELAY));
       }
-      Color fadeColor;
-      byte saturation;
-      byte hue;
+
 
       if (setupFadeTimer.getRemaining() < backgroundTime + SETUP_FADE_UP_INTERVAL) {//we are inside the animation
-        if (setupFadeTimer.getRemaining() < SETUP_FADE_UP_INTERVAL) {//we are fading from white
+        if (setupFadeTimer.getRemaining() < SETUP_FADE_UP_INTERVAL) {//we are fading 
           saturation = 255 - map(setupFadeTimer.getRemaining(), 0, SETUP_FADE_UP_INTERVAL, 0, 255);
-          fadeColor = makeColorHSB(160, saturation, bri);
+          fadeColor = makeColorHSB(160, saturation, bri); //sun spot fade
         } else {
           sunSpotFade.set(SUN_SPOT_FADE);
           if (!sunSpotFade.isExpired()) {
             saturation =  map(sunSpotFade.getRemaining(), SUN_SPOT_FADE, 0, 0, 255);
-
-            fadeColor = makeColorHSB(sunSpot_hue, saturation, bri);
+            fadeColor = makeColorHSB(sunSpot_hue, saturation, bri); //sunspot burst
           }
 
         }
 
-        setColorOnFace(fadeColor, setupFadeFace);
+        setColorOnFace(fadeColor, setupFadeFace); //set sun spot colors
       }
 
-      fadeColor = makeColorHSB(160, 255, bri);
-      setColorOnFace(fadeColor, f);
+      fadeColor = makeColorHSB(160, 255, bri); //cloud colour
+      setColorOnFace(fadeColor, f);  //set cloud colours
     }
 
 
     else {
-      setColorOnFace(faceColor_Lining, f); // if not within the cloud, display the lining color
+      setColorOnFace(faceColor_Lining, f); // if not within the cloud, display the lining color (edges)
 
     }
 
